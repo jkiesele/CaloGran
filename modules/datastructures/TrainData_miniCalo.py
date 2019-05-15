@@ -56,37 +56,42 @@ class TrainData_miniCalo(TrainData):
 
     def formatPrediction(self, predicted_list):
         
-        format_names = ['prob_isA','prob_isB','prob_isC']
-        out_pred = [predicted_list[:,0],predicted_list[:,1],predicted_list[:,2]]
+        format_names = ['pred_E']
+        out_pred = predicted_list
         
         return out_pred,  format_names
+        
         
         
     def readFromRootFile(self,filename,TupleMeanStd, weighter):
     
         import numpy
         import ROOT
-
+        
         fileTimeOut(filename,120) #give eos 2 minutes to recover
+        
         rfile = ROOT.TFile(filename)
         tree = rfile.Get(self.treename)
         self.nsamples=tree.GetEntries()
         
         from DeepJetCore.preprocessing import read4DArray
         
+        
         x = read4DArray(filename,
                                       self.treename,
                                       "rechit",
                                       self.nsamples,
-                                      xsize=100, 
-                                      ysize=100, 
+                                      xsize=50, 
+                                      ysize=50, 
                                       zsize=125, 
                                       fsize=4,
                                       rebinx=self.rebinx,
                                       rebiny=self.rebiny,
                                       rebinz=self.rebinz)
         
+        
         x = x / 1e6
+        
 
         Tuple = self.readTreeFromRootToTuple(filename)  
         
@@ -99,5 +104,32 @@ class TrainData_miniCalo(TrainData):
         self.w=[]
         self.x=[x]
         self.y=[energytruth]
+        
+        
+        
+        
+        
+        
+        
+class TrainData_stage0(TrainData_miniCalo):
+    
+    def __init__(self):
+        import numpy 
+        TrainData_miniCalo.__init__(self)        
+        
+        #xsize=50, 
+        #ysize=50, 
+        #zsize=125, 
+        #fsize=4,
+        
+        self.rebinx=50
+        self.rebiny=50
+        self.rebinz=125
+        
+        
+        
+        
+        
+        
         
         

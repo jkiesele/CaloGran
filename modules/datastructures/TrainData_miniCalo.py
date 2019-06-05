@@ -91,6 +91,7 @@ class TrainData_miniCalo(TrainData):
         
         
         x = x / 1e6
+        x = x[:,:,:,:,:,0]
         
 
         Tuple = self.readTreeFromRootToTuple(filename)  
@@ -128,6 +129,55 @@ class TrainData_stage0(TrainData_miniCalo):
         
         
         
+        
+        
+class TrainData_stage1(TrainData_miniCalo):
+    
+    def __init__(self):
+        import numpy 
+        TrainData_miniCalo.__init__(self)        
+        
+        #xsize=50, 
+        #ysize=50, 
+        #zsize=125, 
+        #fsize=4,
+        
+        self.rebinx=50
+        self.rebiny=50
+        self.rebinz=25
+        
+        
+        
+class TrainData_stage2(TrainData_miniCalo):
+    
+    def __init__(self):
+        import numpy 
+        TrainData_miniCalo.__init__(self)        
+        
+        #xsize=50, 
+        #ysize=50, 
+        #zsize=125, 
+        #fsize=4,
+        
+        self.rebinx=50
+        self.rebiny=50
+        self.rebinz=5
+        
+        
+class TrainData_stage3(TrainData_miniCalo):
+    
+    def __init__(self):
+        import numpy 
+        TrainData_miniCalo.__init__(self)        
+        
+        #xsize=50, 
+        #ysize=50, 
+        #zsize=125, 
+        #fsize=4,
+        
+        self.rebinx=50
+        self.rebiny=50
+        self.rebinz=1
         
         
         

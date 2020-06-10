@@ -3,16 +3,9 @@
 global_layers_list = {}
 
 ## empty
-import tensorflow as tf
-from keras.engine.topology import Layer
+from keras.layers import Layer
 import keras.backend as K
-from keras.engine import InputSpec
-import copy
-import numpy as np
-import keras
-from keras.layers import Flatten
-from symbol import factor
-from matplotlib.pyplot import axis
+import tensorflow as tf
 #from keras.layers.merge import _Merge
 
 
@@ -32,7 +25,7 @@ class split_layer(Layer):
         if self.useleft:
             shape += (self.splitindex,)
         else:
-            shape += (shape[-1]-self.splitindex,)
+            shape += (input_shape[-1]-self.splitindex,)
         return shape
     
     def get_config(self):
@@ -49,45 +42,61 @@ class split_layer(Layer):
 
 
 class simple_correction_layer(Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, afterlin=False, pol_order=4, **kwargs):
         super(simple_correction_layer, self).__init__(**kwargs)
-        
+        self.afterlin=afterlin
+        self.pol_order=pol_order
     
     def compute_output_shape(self, input_shape):
         return tuple([input_shape[0],1])
     
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        self.kernel_lin = self.add_weight(name='kernel_lin', 
+        if not self.afterlin:
+            self.kernel_offset = self.add_weight(name='kernel_offset', 
+                                          shape=(input_shape[1],),
+                                          initializer='zeros',
+                                          trainable=True)
+            
+        
+            self.kernel_lin = self.add_weight(name='kernel_lin', 
+                                          shape=(input_shape[1], 1),
+                                          initializer='zeros',
+                                          trainable=True)
+        if self.pol_order>1:    
+            self.kernel_sq = self.add_weight(name='kernel_sq', 
                                       shape=(input_shape[1], 1),
-                                      initializer='ones',
+                                      initializer='zeros',
                                       trainable=True)
-        self.kernel_sq = self.add_weight(name='kernel_sq', 
+        if self.pol_order>2:
+            self.kernel_pol3 = self.add_weight(name='kernel_pol3', 
                                       shape=(input_shape[1], 1),
-                                      initializer='ones',
+                                      initializer='zeros',
                                       trainable=True)
-        self.kernel_pol3 = self.add_weight(name='kernel_pol3', 
+        if self.pol_order>3:
+            self.kernel_pol4 = self.add_weight(name='kernel_pol4', 
                                       shape=(input_shape[1], 1),
-                                      initializer='ones',
-                                      trainable=True)
-        self.kernel_pol4 = self.add_weight(name='kernel_pol4', 
-                                      shape=(input_shape[1], 1),
-                                      initializer='ones',
+                                      initializer='zeros',
                                       trainable=True)
         super(simple_correction_layer, self).build(input_shape)  # Be sure to call this at the end
         
     def call(self, inputs):
-        print(inputs.shape)
-        lin = K.dot(inputs, self.kernel_lin)
-        lin += 1e-4* K.dot(inputs*inputs, self.kernel_sq)
-        lin += 1e-6* K.dot(inputs*inputs*inputs, self.kernel_pol3)
-        lin += 1e-8 * K.dot(inputs*inputs*inputs*inputs, self.kernel_pol4)
-        print(lin.shape)
+        lin = inputs
+        if not self.afterlin:
+            lin =  K.bias_add(inputs, self.kernel_offset)
+            lin += 1e-1*K.dot(inputs, self.kernel_lin)
+        if self.pol_order>1:
+            lin += 1e-2*K.dot(inputs*inputs, self.kernel_sq)
+        if self.pol_order>2:
+            lin += 1e-2*K.dot(inputs*inputs*inputs, self.kernel_pol3)
+        if self.pol_order>3:
+            lin += 1e-2*K.dot(inputs*inputs*inputs*inputs, self.kernel_pol4)
         return lin
         
     def get_config(self):
         base_config = super(simple_correction_layer, self).get_config()
-        return dict(list(base_config.items()))
+        config = {'afterlin': self.afterlin, 'pol_order': self.pol_order}
+        return dict(list(base_config.items()) + list(config.items() ))
 
 
 class Print(Layer):

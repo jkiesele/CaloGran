@@ -4,15 +4,103 @@ global_loss_list = {}
 
 
 from keras import backend as K
+import tensorflow as tf
 
-global_loss_list = {}
+
+def scale_weight(weight, scale):
+    s = (scale+0.5*scale)/scale
+    weight = s * scale*(weight-0.5)/(1. + scale* (tf.abs(weight-0.5)+K.epsilon())) + 0.5
+    weight = tf.clip_by_value(weight, 0.+K.epsilon(), 1.-K.epsilon())
+    return weight
+
+
+
+bins = [0.,2.,5,10.,20,30,40,50,60,70,80,90,95,98,100.]
+def bin_wise_function(truth, pred, func, **kwargs):
+        
+    sum_loss=None
+    for i in range(len(bins)-1):
+        selection = tf.logical_and(truth>bins[i],truth<=bins[i+1])
+        selected_truth = tf.where(selection, truth, tf.zeros_like(truth)+0.)
+        selected_pred  = tf.where(selection,  pred, tf.zeros_like(pred) +0.) #fraction compatible
+        mask =           tf.where(selection,  tf.zeros_like(truth)+1., tf.zeros_like(truth))
+        thisval = func(selected_truth,selected_pred,mask,**kwargs)
+        #thisval = tf.where(tf.is_nan(thisval),func(truth, pred,**kwargs) ,thisval)
+        if not i:
+            sum_loss  = thisval
+        else:
+            sum_loss += thisval
+            
+    return tf.reduce_mean(sum_loss)
+        
+
+def bin_wise_function_random(truth, pred, func, **kwargs):
+    
+    nbins=9
+    
+    rand_bins = tf.random_uniform(shape=[nbins-1,])
+    rand_bins = scale_weight(rand_bins, 1.1)*98.+1.
+    rand_bins = tf.contrib.framework.sort(rand_bins, axis=-1)
+    #rand_bins = tf.Print(rand_bins,[rand_bins],"rand_bins",summarize=500)
+    
+    
+    sum_loss=None
+    for i in range(nbins):
+        lowerlimit=1.
+        upperlimit=100.
+        if i<nbins-1:
+            upperlimit = rand_bins[i]
+        if i:
+            lowerlimit = rand_bins[i-1]
+            
+        selection = tf.logical_and(truth>=lowerlimit,truth<=upperlimit)
+        selected_truth = tf.where(selection, truth, tf.zeros_like(truth)+0.)
+        selected_pred  = tf.where(selection,  pred, tf.zeros_like(pred) +0.) #fraction compatible
+        mask =           tf.where(selection,  tf.zeros_like(truth)+1., tf.zeros_like(truth))
+        thisval = func(selected_truth,selected_pred,mask,**kwargs)
+        #thisval = tf.where(tf.is_nan(thisval),func(truth, pred,**kwargs) ,thisval)
+        if not i:
+            sum_loss  = thisval
+        else:
+            sum_loss += thisval
+            
+    return tf.reduce_mean(sum_loss)
+        
+def scaled_mse(t,p):
+    diff = t-p
+    #diff = tf.clip_by_value(diff,-10.,10.)
+    return huber(tf.sqrt((diff)**2/(t+1.)+K.epsilon()))
+    
+
+def mean_check(t,p,m, use_sigma=False):
+    N = tf.count_nonzero(m,dtype='float32')+K.epsilon()
+    mean_truth = tf.reduce_sum(t*m)/N
+    mean_pred = tf.reduce_sum(p*m)/N
+    sigma2_pred = tf.reduce_mean((p-mean_pred)**2/N)
+    if use_sigma:
+        return tf.where(N<=K.epsilon(),tf.zeros_like(mean_pred),(mean_truth-mean_pred)**2/sigma2_pred + sigma2_pred/mean_truth)
+    else:
+        return tf.where(N<=K.epsilon(),tf.zeros_like(mean_pred),N*scaled_mse(mean_truth,mean_pred))
+        
+def binned_global_correction_loss(y_true, y_pred):
+    return (bin_wise_function(y_true,y_pred,mean_check)+K.epsilon())
+def binned_global_correction_loss_rel(y_true, y_pred):
+    return (bin_wise_function(y_true,y_pred,mean_check,use_sigma=True)+K.epsilon())
+
+
+def binned_global_correction_loss_random(y_true, y_pred):
+    return (bin_wise_function_random(y_true,y_pred,mean_check)+K.epsilon())
+
+global_loss_list['binned_global_correction_loss']=binned_global_correction_loss 
+global_loss_list['binned_global_correction_loss_random']=binned_global_correction_loss_random          
+
 
 def TBI_huber_loss(y_true, y_pred):
     import tensorflow as tf
     return tf.losses.huber_loss(y_true,y_pred,delta=10)
 
 def huber(x):
-    clip_delta=20.
+    clip_delta=1.
     import tensorflow as tf
     
     cond  = tf.abs(x) < clip_delta
@@ -43,7 +131,7 @@ def huber_loss_calo(y_true, y_pred):
     calo-like huber loss with quadratic until around 10% relative difference for inputs around 100
     '''
     import tensorflow as tf
-    scaleddiff=(y_true-y_pred)/(tf.sqrt(tf.abs(y_true-8)+K.epsilon())+K.epsilon())
+    scaleddiff=(y_true-y_pred)/(tf.sqrt(tf.abs(y_true+.1)+K.epsilon())+K.epsilon())
     ret = huber(scaleddiff)
     ret = tf.where(tf.is_nan(ret), y_true*1000, ret)
     ret = tf.clip_by_value(ret, 0 ,1e6)
@@ -52,6 +140,7 @@ def huber_loss_calo(y_true, y_pred):
     return ret
 
 global_loss_list['huber_loss_calo']=huber_loss_calo
+
 
 def huber_loss_relative(y_true, y_pred):
     '''
@@ -92,57 +181,109 @@ global_loss_list['acc_calo_relative_rms']=acc_calo_relative_rms
 
 
 
-def acc_rel_rms(y_true, y_pred, point):
-    import tensorflow as tf
-    point=float(point)
-    calculate = tf.square((y_true-y_pred)/( tf.abs(y_true)+K.epsilon()))
+
+def acc_rel_rms(y_true, y_pred,point):
+        import tensorflow as tf
+        point=float(point)
+        calculate = tf.square((y_true-y_pred)/( tf.abs(y_true)+K.epsilon()))
+        
+        mask = tf.where(tf.abs(y_true-point)<point/5., 
+                             tf.zeros_like(y_true)+1, 
+                             tf.zeros_like(y_true))
+        
+        non_zero=tf.count_nonzero(mask,dtype='float32')
+        calculate *= mask
+        
+        calculate = tf.reshape(calculate, [-1])
+        calculate = K.sum(calculate,axis=-1)
+        non_zero = tf.reshape(non_zero, [-1])
+        ret = tf.sqrt(tf.abs(calculate/(non_zero+K.epsilon()))+K.epsilon())*100
+        ret = tf.where(tf.is_inf(ret), tf.zeros_like(ret), ret)
+        return ret
+
+class acc_calo_relative_rms_o(object): 
+    def __init__(self, point):
+        self.point=point
+        
+    def __call__(self,y_true, y_pred):
+        return acc_rel_rms(y_true, y_pred,self.point)
     
-    mask = tf.where(tf.abs(y_true-point)<point/5., 
-                         tf.zeros_like(y_true)+1, 
-                         tf.zeros_like(y_true))
-    
-    non_zero=tf.count_nonzero(mask,dtype='float32')
-    calculate *= mask
-    
-    calculate = tf.reshape(calculate, [-1])
-    calculate = K.sum(calculate,axis=-1)
-    non_zero = tf.reshape(non_zero, [-1])
-    ret = tf.sqrt(tf.abs(calculate/(non_zero+K.epsilon()))+K.epsilon())*100
-    ret = tf.where(tf.is_inf(ret), tf.zeros_like(ret), ret)
-    return ret
 
 
 def acc_calo_relative_rms_10(y_true, y_pred):
     return acc_rel_rms(y_true, y_pred,10)
-global_loss_list['acc_calo_relative_rms_10']=acc_calo_relative_rms_10
-
 
 def acc_calo_relative_rms_20(y_true, y_pred):
     return acc_rel_rms(y_true, y_pred,20)
+
+def acc_calo_relative_rms_40(y_true, y_pred):
+    return acc_rel_rms(y_true, y_pred,40)
+
+def acc_calo_relative_rms_60(y_true, y_pred):
+    return acc_rel_rms(y_true, y_pred,60)
+
+def acc_calo_relative_rms_80(y_true, y_pred):
+    return acc_rel_rms(y_true, y_pred,80)
+
+global_loss_list['acc_calo_relative_rms_10']=acc_calo_relative_rms_10
 global_loss_list['acc_calo_relative_rms_20']=acc_calo_relative_rms_20
+global_loss_list['acc_calo_relative_rms_40']=acc_calo_relative_rms_40
+global_loss_list['acc_calo_relative_rms_60']=acc_calo_relative_rms_60
+global_loss_list['acc_calo_relative_rms_80']=acc_calo_relative_rms_80
 
-def acc_calo_relative_rms_50(y_true, y_pred):
-    return acc_rel_rms(y_true, y_pred,50)
-global_loss_list['acc_calo_relative_rms_50']=acc_calo_relative_rms_50
+def acc_bias(y_true, y_pred,point):
+        import tensorflow as tf
+        point=float(point)
+        calculate = (y_pred-y_true)/( tf.abs(y_true)+K.epsilon())
+        
+        mask = tf.where(tf.abs(y_true-point)<point/5., 
+                             tf.zeros_like(y_true)+1, 
+                             tf.zeros_like(y_true))
+        
+        pred = tf.where(tf.abs(y_true-point)<point/5.,  y_pred, tf.zeros_like(y_pred)+K.epsilon())
+        true = tf.where(tf.abs(y_true-point)<point/5.,  y_true, tf.zeros_like(y_pred)+K.epsilon())
+        
+        
+        
+        non_zero=tf.count_nonzero(mask,dtype='float32')+K.epsilon()
+        calculate *= mask
+        
+        calculate = tf.reshape(calculate, [-1])
+        calculate = K.sum(calculate,axis=-1)
+        non_zero = tf.reshape(non_zero, [-1])
+        ret = (calculate/(non_zero+K.epsilon()))*100.
+        ret = tf.where(tf.is_inf(ret), tf.zeros_like(ret), ret)
+        return ret
+    
+class acc_calo_bias_o(object): 
+    def __init__(self, point):
+        self.point=point
+    def __call__(self,y_true, y_pred):
+        return acc_bias(y_true, y_pred,self.point)
 
-def acc_calo_relative_rms_70(y_true, y_pred):
-    return acc_rel_rms(y_true, y_pred,70)
-global_loss_list['acc_calo_relative_rms_70']=acc_calo_relative_rms_70
 
+def acc_calo_bias_5(y_true, y_pred):
+    return acc_bias(y_true, y_pred,5)
+def acc_calo_bias_10(y_true, y_pred):
+    return acc_bias(y_true, y_pred,10)
+def acc_calo_bias_20(y_true, y_pred):
+    return acc_bias(y_true, y_pred,20)
+def acc_calo_bias_40(y_true, y_pred):
+    return acc_bias(y_true, y_pred,40)
+def acc_calo_bias_60(y_true, y_pred):
+    return acc_bias(y_true, y_pred,60)
+def acc_calo_bias_80(y_true, y_pred):
+    return acc_bias(y_true, y_pred,80)
+def acc_calo_bias_100(y_true, y_pred):
+    return acc_bias(y_true, y_pred,100)
 
-
-def acc_calo_relative_rms_100(y_true, y_pred):
-    return acc_rel_rms(y_true, y_pred,100)
-global_loss_list['acc_calo_relative_rms_100']=acc_calo_relative_rms_100
-
-def acc_calo_relative_rms_500(y_true, y_pred):
-    return acc_rel_rms(y_true, y_pred,500)
-global_loss_list['acc_calo_relative_rms_500']=acc_calo_relative_rms_500
-
-def acc_calo_relative_rms_1000(y_true, y_pred):
-    return acc_rel_rms(y_true, y_pred,1000)
-global_loss_list['acc_calo_relative_rms_1000']=acc_calo_relative_rms_1000
-
+global_loss_list['acc_calo_bias_5']=acc_calo_bias_5
+global_loss_list['acc_calo_bias_10']=acc_calo_bias_10
+global_loss_list['acc_calo_bias_20']=acc_calo_bias_20
+global_loss_list['acc_calo_bias_40']=acc_calo_bias_40
+global_loss_list['acc_calo_bias_60']=acc_calo_bias_60
+global_loss_list['acc_calo_bias_80']=acc_calo_bias_80
+global_loss_list['acc_calo_bias_100']=acc_calo_bias_100
 
 
 

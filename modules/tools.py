@@ -1,13 +1,13 @@
 import keras
-from keras.layers import Dense, Conv1D, ZeroPadding3D,Conv3D,Dropout, Flatten, Convolution2D,Conv3D, merge, Convolution1D, Conv2D, LSTM, LocallyConnected2D
-from keras.layers.pooling import MaxPooling3D
+from keras.layers import Dense, Conv1D, ZeroPadding3D,Conv3D,Dropout, Flatten, Convolution2D,Conv3D, Convolution1D, Conv2D, LSTM, LocallyConnected2D
+from keras.layers import MaxPooling3D
 from keras.models import Model
-from keras.layers.core import Reshape, Masking, Permute, RepeatVector
-from keras.layers.pooling import MaxPooling2D, MaxPooling3D,AveragePooling3D
-from keras.layers.normalization import BatchNormalization
-from keras.layers.merge import Concatenate,Add
-from keras.layers.noise import GaussianDropout
-from keras.layers.advanced_activations import LeakyReLU
+from keras.layers import Reshape, Masking, Permute, RepeatVector
+from keras.layers import MaxPooling2D, MaxPooling3D,AveragePooling3D
+from keras.layers import BatchNormalization
+from keras.layers import Concatenate,Add
+from keras.layers import GaussianDropout
+from keras.layers import LeakyReLU
 from keras.layers import Cropping3D
 from keras.regularizers import l2
 import keras.backend as K
@@ -15,7 +15,68 @@ import keras.backend as K
 from Layers import Sum3DFeatureOne,Sum3DFeaturePerLayer, Create_per_layer_energies,SelectEnergyOnly, ReshapeBatch, ScalarMultiply, Log_plus_one, Clip, SelectFeatureOnly, Print, Reduce_sum, Multiply_feature
 from tensorflow.contrib.learn.python.learn import trainable
 
+import matplotlib
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
+import numpy as np
 
+class offset_plotter(object):
+    
+    def __init__(self, train, relative=False):
+        self.train=train
+        self.relative=relative
+        
+    def make_plot(self,counter,model_input_list, predict_output_list, truth_list):
+        
+        pred = predict_output_list[0][:,0]
+        diff = pred-truth_list[0]
+        truth = truth_list[0]
+        
+        ranges = [float(i)*10.+5. for i in range(0,10) ]
+        xs = []
+        ys = []
+        yerrs=[]
+        yrms=[]
+        yrmserrs=[]
+        
+        for r in ranges:
+            selector = np.abs(truth - r) < 10
+            thisdiff = diff[selector]
+            if self.relative:
+                thisrms =  100.* np.std(thisdiff/truth[selector])
+                thisstat = 100.* 1./np.sqrt(float(selector.shape[0]))
+                thisrmsstat = thisrms*thisstat/100.
+                thisdiff = 100.* np.mean(thisdiff/truth[selector],axis=0)
+            else:
+                thisrms =  np.std(thisdiff)
+                thisstat = np.sqrt(float(selector.shape[0]))
+                thisrmsstat = thisrms*thisstat
+                thisdiff = np.mean(thisdiff,axis=0)
+                
+            xs.append(r)
+            ys.append(thisdiff)
+            yrms.append(thisrms)
+            yrmserrs.append(thisrmsstat)
+            yerrs.append(thisstat)
+            
+        fig = plt.figure()
+        ax = fig.add_subplot(211)
+        ax.errorbar(xs, ys,
+                yerr=yerrs,
+                fmt='-o')
+        
+        ax = fig.add_subplot(212)
+        ax.errorbar(xs, yrms,
+                yerr=yrmserrs,
+                fmt='-o')
+        fig.savefig(self.train.outputDir+"/offset_"+str(counter)+ ".pdf")
+        plt.close()
+        
+        difftoone = np.abs(truth-100.)
+        _,_,_ = plt.hist(np.concatenate([pred[truth<5],pred[difftoone < 5]],axis=-1), 30)
+        plt.savefig(self.train.outputDir+"/distr_"+str(counter)+ ".pdf")
+        plt.close()
+        
 
 def miniCalo_preprocess(x,name):
     x  = ScalarMultiply(0.01,name=name)(x)

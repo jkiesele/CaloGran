@@ -78,20 +78,25 @@ class TrainData_miniCalo(TrainData):
         
         
         x = read4DArray(filename,
-                                      self.treename,
-                                      "rechit",
-                                      self.nsamples,
-                                      xsize=50, 
-                                      ysize=50, 
-                                      zsize=125, 
-                                      fsize=4,
-                                      rebinx=self.rebinx,
-                                      rebiny=self.rebiny,
-                                      rebinz=self.rebinz)
+                        self.treename,
+                        "rechit",
+                        self.nsamples,
+                        xsize=50, 
+                        ysize=50, 
+                        zsize=125, 
+                        fsize=4,
+                        rebinx=self.rebinx,
+                        rebiny=self.rebiny,
+                        rebinz=self.rebinz)
         
         
-        x = x / 1e6
+        #x = x / 1e3
+        
+        
         x = x[:,:,:,:,:,0]
+        
+        #print(x)
+        print(x.shape)
         
 
         Tuple = self.readTreeFromRootToTuple(filename)  
@@ -99,7 +104,6 @@ class TrainData_miniCalo(TrainData):
         
         energytruth  =  numpy.array(Tuple[self.regtruth])
         
-        print(x.shape)
 
         
         self.w=[]
@@ -180,6 +184,38 @@ class TrainData_stage3(TrainData_miniCalo):
         self.rebinz=1
         
         
+              
+class TrainData_stage2a(TrainData_miniCalo):
+    
+    def __init__(self):
+        import numpy 
+        TrainData_miniCalo.__init__(self)        
+        
+        #xsize=50, 
+        #ysize=50, 
+        #zsize=125, 
+        #fsize=4,
+        
+        self.rebinx=1
+        self.rebiny=1
+        self.rebinz=5
+        
+        
+        
+class TrainData_stage3a(TrainData_miniCalo):
+    
+    def __init__(self):
+        import numpy 
+        TrainData_miniCalo.__init__(self)        
+        
+        #xsize=50, 
+        #ysize=50, 
+        #zsize=125, 
+        #fsize=4,
+        
+        self.rebinx=1
+        self.rebiny=1
+        self.rebinz=1
         
         
         

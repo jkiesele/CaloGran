@@ -11,9 +11,10 @@ from keras.layers import LeakyReLU
 from keras.layers import Cropping3D
 from keras.regularizers import l2
 import keras.backend as K
+import tensorflow as tf
 
 from Layers import Sum3DFeatureOne,Sum3DFeaturePerLayer, Create_per_layer_energies,SelectEnergyOnly, ReshapeBatch, ScalarMultiply, Log_plus_one, Clip, SelectFeatureOnly, Print, Reduce_sum, Multiply_feature
-from tensorflow.contrib.learn.python.learn import trainable
+#from tensorflow.contrib.learn.python.learn import trainable
 
 import matplotlib
 matplotlib.use('Agg') 
@@ -207,7 +208,7 @@ def create_conv_resnet(x, name,
                       padding='same')(x_dumb)
       
     x_lin = Conv3D(nodes_lin,kernel_size=kernel_dumb,strides=kernel_dumb, name=name+'_lin',
-                      kernel_initializer=keras.initializers.random_normal(0.0, 1e-3),
+                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       trainable=lin_trainable,
                       #activation='tanh',
                       #kernel_regularizer=l2(0.1*lambda_reg),
@@ -219,7 +220,7 @@ def create_conv_resnet(x, name,
     if dropout>0:
         x_resnet = Dropout(2*dropout)(x_resnet)   
     x_resnet = Conv3D(nodes_nonlin,kernel_size=kernel_nonlin_a,strides=(1,1,1), name=name+'_res_a',
-                      kernel_initializer=keras.initializers.random_normal(0.0, 1e-3),
+                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),
@@ -229,7 +230,7 @@ def create_conv_resnet(x, name,
         x_resnet = Dropout(2*dropout)(x_resnet)    
                  
     x_resnet = Conv3D(nodes_nonlin,kernel_size=kernel_nonlin_b,strides=(1,1,1), name=name+'_res_b',
-                      kernel_initializer=keras.initializers.random_normal(0.0, 1e-3),
+                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),
@@ -239,7 +240,7 @@ def create_conv_resnet(x, name,
         x_resnet = Dropout(2*dropout)(x_resnet)    
                       
     x_resnet = Conv3D(nodes_lin,kernel_size=kernel_dumb,strides=kernel_dumb, name=name+'_res_c',
-                      kernel_initializer=keras.initializers.random_normal(0.0, 1e-3),
+                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),

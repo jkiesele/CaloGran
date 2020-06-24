@@ -25,7 +25,7 @@ def bin_wise_function(truth, pred, func, **kwargs):
         selected_pred  = tf.where(selection,  pred, tf.zeros_like(pred) +0.) #fraction compatible
         mask =           tf.where(selection,  tf.zeros_like(truth)+1., tf.zeros_like(truth))
         thisval = func(selected_truth,selected_pred,mask,**kwargs)
-        #thisval = tf.where(tf.is_nan(thisval),func(truth, pred,**kwargs) ,thisval)
+        #thisval = tf.where(tf.math.is_nan(thisval),func(truth, pred,**kwargs) ,thisval)
         if not i:
             sum_loss  = thisval
         else:
@@ -38,9 +38,9 @@ def bin_wise_function_random(truth, pred, func, **kwargs):
     
     nbins=9
     
-    rand_bins = tf.random_uniform(shape=[nbins-1,])
+    rand_bins = tf.random.uniform(shape=[nbins-1,])
     rand_bins = scale_weight(rand_bins, 1.1)*98.+1.
-    rand_bins = tf.contrib.framework.sort(rand_bins, axis=-1)
+    rand_bins = tf.sort(rand_bins, axis=-1)
     #rand_bins = tf.Print(rand_bins,[rand_bins],"rand_bins",summarize=500)
     
     
@@ -58,22 +58,26 @@ def bin_wise_function_random(truth, pred, func, **kwargs):
         selected_pred  = tf.where(selection,  pred, tf.zeros_like(pred) +0.) #fraction compatible
         mask =           tf.where(selection,  tf.zeros_like(truth)+1., tf.zeros_like(truth))
         thisval = func(selected_truth,selected_pred,mask,**kwargs)
-        #thisval = tf.where(tf.is_nan(thisval),func(truth, pred,**kwargs) ,thisval)
+        #thisval = tf.where(tf.math.is_nan(thisval),func(truth, pred,**kwargs) ,thisval)
         if not i:
             sum_loss  = thisval
         else:
             sum_loss += thisval
             
-    return tf.reduce_mean(sum_loss)
+    return tf.reduce_mean(sum_loss)/100.
         
 def scaled_mse(t,p):
     diff = t-p
     #diff = tf.clip_by_value(diff,-10.,10.)
     return huber(tf.sqrt((diff)**2/(t+1.)+K.epsilon()))
     
+def reduced_mse(truth, pred):
+    return tf.reduce_mean( (truth-pred)**2 )/25.
+
+global_loss_list['reduced_mse']=reduced_mse 
 
 def mean_check(t,p,m, use_sigma=False):
-    N = tf.count_nonzero(m,dtype='float32')+K.epsilon()
+    N = tf.math.count_nonzero(m,dtype='float32')+K.epsilon()
     mean_truth = tf.reduce_sum(t*m)/N
     mean_pred = tf.reduce_sum(p*m)/N
     sigma2_pred = tf.reduce_mean((p-mean_pred)**2/N)
@@ -108,8 +112,8 @@ def huber(x):
     squared_loss = tf.square(x)
     linear_loss  = 2* clip_delta * (tf.abs(x) - 0.5 * clip_delta)
     ret = tf.sqrt(tf.abs(tf.where(cond, squared_loss, linear_loss))+K.epsilon())
-    ret = tf.where(tf.is_nan(ret), tf.abs(x),ret)
-    ret = tf.where(tf.is_inf(ret), tf.abs(x),ret)
+    ret = tf.where(tf.math.is_nan(ret), tf.abs(x),ret)
+    ret = tf.where(tf.math.is_inf(ret), tf.abs(x),ret)
     return ret
 
 def huber_loss(y_true, y_pred):
@@ -132,8 +136,8 @@ def huber_loss_calo(y_true, y_pred):
     '''
     import tensorflow as tf
     scaleddiff=(y_true-y_pred)/(tf.sqrt(tf.abs(y_true+.1)+K.epsilon())+K.epsilon())
-    ret = huber(scaleddiff)
-    ret = tf.where(tf.is_nan(ret), y_true*1000, ret)
+    ret = scaleddiff**2 #huber(scaleddiff)
+    ret = tf.where(tf.math.is_nan(ret), y_true*1000, ret)
     ret = tf.clip_by_value(ret, 0 ,1e6)
     ret = tf.reshape(ret, [-1])
     ret = K.mean(ret,axis=-1)
@@ -150,8 +154,8 @@ def huber_loss_relative(y_true, y_pred):
     scaleddiff=(y_true-y_pred)/(tf.abs(y_true)+K.epsilon())
     scaleddiff = tf.clip_by_value(scaleddiff, -100, 100)
     ret = huber(scaleddiff)
-    ret = tf.where(tf.is_nan(ret), y_true*1000, ret)
-    ret = tf.where(tf.is_inf(ret), y_true*1000, ret)
+    ret = tf.where(tf.math.is_nan(ret), y_true*1000, ret)
+    ret = tf.where(tf.math.is_inf(ret), y_true*1000, ret)
     ret = tf.clip_by_value(ret,-2,2)
     return K.mean(ret,axis=-1)*100
   
@@ -169,10 +173,10 @@ global_loss_list['calo_loss_rel'] = calo_loss_rel
 def acc_calo_relative_rms(y_true, y_pred):
     import tensorflow as tf
     ret=tf.square((y_true-y_pred)/( tf.abs(y_true)+K.epsilon()))
-    #ret = tf.where(tf.is_nan(ret), tf.abs(y_true-y_pred)*1000, ret)
-    #ret = tf.where(tf.is_inf(ret), tf.abs(y_true-y_pred)*1000, ret)
-    #ret = tf.where(tf.is_nan(ret), y_true*1000, ret)
-    #ret = tf.where(tf.is_inf(ret), y_true*1000, ret)
+    #ret = tf.where(tf.math.is_nan(ret), tf.abs(y_true-y_pred)*1000, ret)
+    #ret = tf.where(tf.math.is_inf(ret), tf.abs(y_true-y_pred)*1000, ret)
+    #ret = tf.where(tf.math.is_nan(ret), y_true*1000, ret)
+    #ret = tf.where(tf.math.is_inf(ret), y_true*1000, ret)
     #ret = tf.clip_by_value(ret,-2000,2000)
     ret = tf.reshape(ret, [-1])
     return tf.sqrt(K.mean(ret  , axis=-1)) * 100
@@ -191,14 +195,14 @@ def acc_rel_rms(y_true, y_pred,point):
                              tf.zeros_like(y_true)+1, 
                              tf.zeros_like(y_true))
         
-        non_zero=tf.count_nonzero(mask,dtype='float32')
+        non_zero=tf.math.count_nonzero(mask,dtype='float32')
         calculate *= mask
         
         calculate = tf.reshape(calculate, [-1])
         calculate = K.sum(calculate,axis=-1)
         non_zero = tf.reshape(non_zero, [-1])
         ret = tf.sqrt(tf.abs(calculate/(non_zero+K.epsilon()))+K.epsilon())*100
-        ret = tf.where(tf.is_inf(ret), tf.zeros_like(ret), ret)
+        ret = tf.where(tf.math.is_inf(ret), tf.zeros_like(ret), ret)
         return ret
 
 class acc_calo_relative_rms_o(object): 
@@ -245,14 +249,14 @@ def acc_bias(y_true, y_pred,point):
         
         
         
-        non_zero=tf.count_nonzero(mask,dtype='float32')+K.epsilon()
+        non_zero=tf.math.count_nonzero(mask,dtype='float32')+K.epsilon()
         calculate *= mask
         
         calculate = tf.reshape(calculate, [-1])
         calculate = K.sum(calculate,axis=-1)
         non_zero = tf.reshape(non_zero, [-1])
         ret = (calculate/(non_zero+K.epsilon()))*100.
-        ret = tf.where(tf.is_inf(ret), tf.zeros_like(ret), ret)
+        ret = tf.where(tf.math.is_inf(ret), tf.zeros_like(ret), ret)
         return ret
     
 class acc_calo_bias_o(object): 
@@ -305,7 +309,7 @@ def loss_logcoshClipped(y_true, y_pred):
                      
     def cleaned_scaledlogcoshdiff(x,y,scale):
         logcosh=scaledlogcoshdiff(x,y,scale)
-        return tf.where(tf.is_nan(logcosh), tf.zeros_like(logcosh)+scaler*scaler*tf.abs(x-y), logcosh)
+        return tf.where(tf.math.is_nan(logcosh), tf.zeros_like(logcosh)+scaler*scaler*tf.abs(x-y), logcosh)
     
     
     return K.mean(2*scaler*scaler*cleaned_scaledlogcoshdiff(y_true,y_pred,scaler) , axis=-1)
@@ -321,12 +325,12 @@ def loss_Calo_logcoshClipped(y_true, y_pred):
     
     def cosh(x):
         calccosh=(tf.exp(x) + tf.exp(-x)) / 2
-        return tf.where(tf.is_nan(calccosh), tf.square(x) , calccosh)
+        return tf.where(tf.math.is_nan(calccosh), tf.square(x) , calccosh)
     
     def scaledrellogcoshdiff(x,y,scale):
         out = tf.log(cosh( (x - y)/(scale* tf.sqrt(tf.abs(x)+1) ) ))
-        out = tf.where(tf.is_nan(out), tf.square(x - y) , out)
-        return tf.where(tf.is_inf(out), tf.square(x - y) , out)
+        out = tf.where(tf.math.is_nan(out), tf.square(x - y) , out)
+        return tf.where(tf.math.is_inf(out), tf.square(x - y) , out)
 
     return K.mean(scaledrellogcoshdiff(y_true,y_pred,scaler) , axis=-1)
     

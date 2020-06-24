@@ -122,7 +122,7 @@ class TrainData_c_stage1(TrainData_c):
         
         self.rebinx=30
         self.rebiny=30
-        self.rebinz=6  #10
+        self.rebinz=10  #6
         
 class TrainData_c_stage2(TrainData_c):
     
@@ -131,7 +131,7 @@ class TrainData_c_stage2(TrainData_c):
         
         self.rebinx=30
         self.rebiny=30
-        self.rebinz=5 #12
+        self.rebinz=6  #10
         
 class TrainData_c_stage3(TrainData_c):
     
@@ -140,7 +140,7 @@ class TrainData_c_stage3(TrainData_c):
         
         self.rebinx=30
         self.rebiny=30
-        self.rebinz=4 #15
+        self.rebinz=5 #12
         
 class TrainData_c_stage4(TrainData_c):
     
@@ -149,7 +149,7 @@ class TrainData_c_stage4(TrainData_c):
         
         self.rebinx=30
         self.rebiny=30
-        self.rebinz=3 #20
+        self.rebinz=4 #15
         
 class TrainData_c_stage5(TrainData_c):
     
@@ -158,9 +158,18 @@ class TrainData_c_stage5(TrainData_c):
         
         self.rebinx=30
         self.rebiny=30
-        self.rebinz=2 #30
+        self.rebinz=3 #20
         
 class TrainData_c_stage6(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=30
+        self.rebiny=30
+        self.rebinz=2 #30
+        
+class TrainData_c_stage7(TrainData_c):
     
     def __init__(self):
         TrainData_c.__init__(self)        

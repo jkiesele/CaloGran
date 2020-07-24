@@ -208,7 +208,7 @@ def create_conv_resnet(x, name,
                       padding='same')(x_dumb)
       
     x_lin = Conv3D(nodes_lin,kernel_size=kernel_dumb,strides=kernel_dumb, name=name+'_lin',
-                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
+                      #kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       trainable=lin_trainable,
                       #activation='tanh',
                       #kernel_regularizer=l2(0.1*lambda_reg),
@@ -220,7 +220,7 @@ def create_conv_resnet(x, name,
     if dropout>0:
         x_resnet = Dropout(2*dropout)(x_resnet)   
     x_resnet = Conv3D(nodes_nonlin,kernel_size=kernel_nonlin_a,strides=(1,1,1), name=name+'_res_a',
-                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
+                      #kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),
@@ -230,7 +230,7 @@ def create_conv_resnet(x, name,
         x_resnet = Dropout(2*dropout)(x_resnet)    
                  
     x_resnet = Conv3D(nodes_nonlin,kernel_size=kernel_nonlin_b,strides=(1,1,1), name=name+'_res_b',
-                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
+                      #kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),
@@ -240,7 +240,7 @@ def create_conv_resnet(x, name,
         x_resnet = Dropout(2*dropout)(x_resnet)    
                       
     x_resnet = Conv3D(nodes_lin,kernel_size=kernel_dumb,strides=kernel_dumb, name=name+'_res_c',
-                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
+                      #kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),
@@ -254,6 +254,13 @@ def create_conv_resnet(x, name,
     
     return x_dumb
 
+from DeepJetCore.DJCLayers import ScalarMultiply, Print, SelectFeatures
+
+def normalise_but_energy(x, momentum=0.6):
+    e = SelectFeatures(0,1)(x)
+    r = SelectFeatures(1,x.shape[-1])(x)
+    r = BatchNormalization(momentum=momentum)(r)
+    return Concatenate()([e,r])
 
 
 

@@ -32,7 +32,8 @@ class TrainData_c(TrainData):
         
     def readAndReshape(self, tree,branchname):
         entry = np.array( list(tree[branchname].array()) ,dtype='float32')
-        return np.reshape(entry, [-1, 30,30,60,1])
+        a = np.reshape(entry, [-1, 60,30,30,1])
+        return np.transpose(a, axes=[0,2,3,1,4]).copy(order='C') # B x y z F
     
     ###TBI
     def rebin(self,x):
@@ -44,16 +45,40 @@ class TrainData_c(TrainData):
         if self.rebinx>1 or self.rebiny>1 or self.rebinz>1:
             if 30%self.rebinx or 30%self.rebiny or 60%self.rebinz:
                 raise ValueError("TrainData_c.rebin: invalid rebinning choice")
-            x = np.reshape(x, [-1, 
-                           int(30/self.rebinx), self.rebinx,
-                           int(30/self.rebiny), self.rebiny,
-                           int(60/self.rebinz), self.rebinz,
-                           x.shape[-1]
+            x = np.reshape(x, [x.shape[0], 
+                           30//self.rebinx, self.rebinx,
+                           x.shape[2], 
+                           x.shape[3], 
+                           x.shape[4]
                            ])
-        x = np.sum(x, axis=2) 
-        x = np.sum(x, axis=3)
-        x = np.sum(x, axis=4)
-        print(x.shape)
+            #print(x.shape)
+            x = np.sum(x, axis=2) 
+            x[:,:,:,:,1:] /= self.rebinx
+            
+            
+            x = np.reshape(x, [x.shape[0], 
+                           x.shape[1],
+                           30//self.rebiny, self.rebiny,
+                           x.shape[3], 
+                           x.shape[4]
+                           ])
+            #print(x.shape)
+            x = np.sum(x, axis=3) 
+            x[:,:,:,:,1:] /= self.rebiny
+            
+            x = np.reshape(x, [x.shape[0], 
+                           x.shape[1],
+                           x.shape[2], 
+                           60//self.rebinz, self.rebinz,
+                           x.shape[4]
+                           ])
+            #print(x.shape)
+            x = np.sum(x, axis=4) 
+            x[:,:,:,:,1:] /= self.rebinz
+            #print(x.shape)
+            
+            #just use keras downsampling or something here?
+            
         return x
         
     def convertFromSourceFileToArrays(self, filename, weighterobjects, istraining):  
@@ -178,4 +203,31 @@ class TrainData_c_stage7(TrainData_c):
         self.rebiny=30
         self.rebinz=1 #60
         
+        
+class TrainData_c_stageA(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=3
+        self.rebiny=3
+        self.rebinz=60 #1
+        
+class TrainData_c_stageB(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=2
+        self.rebiny=2
+        self.rebinz=60 #1
+        
+class TrainData_c_stageC(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=1
+        self.rebiny=1
+        self.rebinz=60 #1
         

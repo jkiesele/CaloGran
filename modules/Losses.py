@@ -145,6 +145,11 @@ def huber_loss_calo(y_true, y_pred):
 
 global_loss_list['huber_loss_calo']=huber_loss_calo
 
+def loss_calo(y_true, y_pred):
+    import tensorflow as tf
+    return tf.reduce_mean( tf.abs(y_true-y_pred)/(y_true+0.0001) )
+
+global_loss_list['loss_calo']=loss_calo
 
 def huber_loss_relative(y_true, y_pred):
     '''

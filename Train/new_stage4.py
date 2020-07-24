@@ -10,49 +10,42 @@ from keras.layers import Concatenate, Add, Multiply
 from Layers import split_layer, simple_correction_layer
 from DeepJetCore.DJCLayers import ScalarMultiply, Print, SelectFeatures
 
-from tools import create_conv_resnet
+from tools import create_conv_resnet, normalise_but_energy
 
-
-def normalise_but_energy(x, momentum=0.6):
-    e = SelectFeatures(0,1)(x)
-    r = SelectFeatures(1,x.shape[-1])(x)
-    r = BatchNormalization(momentum=momentum)(r)
-    return Concatenate()([e,r])
 
 def mymodel(Inputs, momentum=0.6):
     
     x = Inputs[0]
-    x = normalise_but_energy(x) # ... 1 x 1 x 6 x F
-    x = create_conv_resnet(x, name='rn1',
-                       kernel_dumb=(1,1,2),
-                       nodes_lin=16,
-                       nodes_nonlin=24, 
-                       kernel_nonlin_a=(1,1,3), 
-                       kernel_nonlin_b=(1,1,3), 
-                       lambda_reg=0,
-                       dropout=-1)
-    x = create_conv_resnet(x, name='rn2',
-                       kernel_dumb=(1,1,3),
-                       nodes_lin=16,
-                       nodes_nonlin=24, 
-                       kernel_nonlin_a=(1,1,3), 
-                       kernel_nonlin_b=(1,1,3), 
-                       lambda_reg=0,
-                       dropout=-1)
-    
-    e = SelectFeatures(0,1)(x)
-    e = Flatten()(e)
+    x = normalise_but_energy(x)
+    print('>>>>> x shape',x.shape)
+    #x = create_conv_resnet(x, name='rn1',
+    #                   kernel_dumb=(1,1,2),
+    #                   nodes_lin=16,
+    #                   nodes_nonlin=24, 
+    #                   kernel_nonlin_a=(1,1,3), 
+    #                   kernel_nonlin_b=(1,1,3), 
+    #                   lambda_reg=0,
+    #                   dropout=-1)
+    #x = create_conv_resnet(x, name='rn2',
+    #                   kernel_dumb=(1,1,3),
+    #                   nodes_lin=16,
+    #                   nodes_nonlin=24, 
+    #                   kernel_nonlin_a=(1,1,3), 
+    #                   kernel_nonlin_b=(1,1,3), 
+    #                   lambda_reg=0,
+    #                   dropout=-1)
+    #
     x = Flatten()(x)
+    x = Dense(128,activation='elu')(x)
     x = Dense(32,activation='elu')(x)
     x = ScalarMultiply(10.)(x)
-    x = Concatenate()([e,x])
-    x = Dense(1, name="energy", kernel_initializer='ones')(x)
+    x = Dense(1, name="energy")(x)
     
     model = Model(inputs=Inputs, outputs=[x])
     return model
 
 
-from Losses import huber_loss_calo, reduced_mse
+from Losses import huber_loss_calo, reduced_mse, loss_calo
 from Losses import binned_global_correction_loss,binned_global_correction_loss_rel, binned_global_correction_loss_random
 
 
@@ -86,20 +79,18 @@ from training_scheduler import scheduled_training, Learning_sched
 learn=[]
 
 learn.append(Learning_sched(lr=1e-3,     
-                            nepochs=50,   
+                            nepochs=1,   
                             batchsize=100,
                             #loss=[binned_global_correction_loss_random]))
-                            loss=[reduced_mse]))
+                            loss=[loss_calo]))
 
-learn.append(Learning_sched(lr=1e-4,     
+learn.append(Learning_sched(lr=1e-6,     
                             nepochs=50, 
-                            batchsize=1000,
-                            loss = [huber_loss_calo]))
-
+                            batchsize=1100))
 
 learn.append(Learning_sched(lr=1e-6,     
                             nepochs=20,  
-                            batchsize=2000,
+                            batchsize=2100,
                             loss=[binned_global_correction_loss_random]))
 
 

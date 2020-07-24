@@ -10,19 +10,12 @@ from keras.layers import Concatenate, Add, Multiply
 from Layers import split_layer, simple_correction_layer
 from DeepJetCore.DJCLayers import ScalarMultiply, Print, SelectFeatures
 
-from tools import create_conv_resnet
-
-
-def normalise_but_energy(x, momentum=0.6):
-    e = SelectFeatures(0,1)(x)
-    r = SelectFeatures(1,x.shape[-1])(x)
-    r = BatchNormalization(momentum=momentum)(r)
-    return Concatenate()([e,r])
+from tools import create_conv_resnet, normalise_but_energy
 
 def mymodel(Inputs, momentum=0.6):
     
     x = Inputs[0]
-    x = normalise_but_energy(x) # ... 1 x 1 x 6 x F
+    x = SelectFeatures(0,1)(x)
     x = create_conv_resnet(x, name='rn1',
                        kernel_dumb=(1,1,2),
                        nodes_lin=16,
@@ -40,13 +33,10 @@ def mymodel(Inputs, momentum=0.6):
                        lambda_reg=0,
                        dropout=-1)
     
-    e = SelectFeatures(0,1)(x)
-    e = Flatten()(e)
     x = Flatten()(x)
     x = Dense(32,activation='elu')(x)
     x = ScalarMultiply(10.)(x)
-    x = Concatenate()([e,x])
-    x = Dense(1, name="energy", kernel_initializer='ones')(x)
+    x = Dense(1, name="energy")(x)
 
     model = Model(inputs=Inputs, outputs=[x])
     return model

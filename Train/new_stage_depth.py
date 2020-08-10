@@ -10,45 +10,59 @@ from keras.layers import Concatenate, Add, Multiply
 from Layers import split_layer, simple_correction_layer
 from DeepJetCore.DJCLayers import ScalarMultiply, Print, SelectFeatures
 
-
 from tools import create_conv_resnet, normalise_but_energy
 
+
+from argparse import ArgumentParser
+parser = ArgumentParser('Run all trainings')
+
+parser.add_argument("--xy",   help="",  default=False, action="store_true")
+
+train = training_base(testrun=False, parser=parser)
+
+
+
+
+#1x1x10
 def mymodel(Inputs, momentum=0.6):
     
     x = Inputs[0]
-    x = SelectFeatures(0,1)(x)
-    x = create_conv_resnet(x, name='rn1',
-                       kernel_dumb=(1,1,2),
-                       nodes_lin=24,
+    x = BatchNormalization(momentum=momentum)(x) 
+    
+    xystride = 1
+    xyrnkern = 1
+    if x.shape[-3] > 6:
+        xystride=2
+        xyrnkern=3
+        
+    i = 0
+    while x.shape[-2] > 6 or x.shape[-3] > 6:
+        x = create_conv_resnet(x, name='rn_'+str(i),
+                       kernel_dumb=(xystride,xystride,2),
+                       nodes_lin=16,
                        nodes_nonlin=32, 
-                       kernel_nonlin_a=(1,1,3), 
-                       kernel_nonlin_b=(1,1,3), 
+                       kernel_nonlin_a=(1,xyrnkern,3), 
+                       kernel_nonlin_b=(xyrnkern,1,3), 
                        lambda_reg=0,
                        dropout=-1)
-    x = create_conv_resnet(x, name='rn2',
-                       kernel_dumb=(1,1,3),
-                       nodes_lin=24,
-                       nodes_nonlin=24, 
-                       kernel_nonlin_a=(1,1,4), 
-                       kernel_nonlin_b=(1,1,4), 
-                       lambda_reg=0,
-                       dropout=-1)
+        x = BatchNormalization(momentum=momentum)(x) 
+        print('added conv block',i)
+        i+=1
     
     x = Flatten()(x)
-    x = Dense(32,activation='elu')(x)
-    x = ScalarMultiply(10.)(x)
+    x = Dense(128,activation='elu')(x)
+    x = Dense(64,activation='elu')(x)
     x = Dense(1, name="energy")(x)
+    x = ScalarMultiply(100.)(x)
 
     model = Model(inputs=Inputs, outputs=[x])
     return model
-
 
 from Losses import huber_loss_calo, reduced_mse
 from Losses import binned_global_correction_loss,binned_global_correction_loss_rel, binned_global_correction_loss_random
 
 
 # also dows all the parsing
-train = training_base(testrun=False)
 
 if not train.modelSet():
     train.setModel(mymodel)
@@ -76,7 +90,6 @@ from training_scheduler import scheduled_training, Learning_sched
 
 learn=[]
 
-
 learn.append(Learning_sched(lr=1e-3,     
                             nepochs=50,   
                             batchsize=100,
@@ -89,6 +102,7 @@ learn.append(Learning_sched(lr=1e-4,
                             loss = [huber_loss_calo]))
 
 
+#basically a chi2 fit here
 learn.append(Learning_sched(lr=1e-6,     
                             nepochs=20,  
                             batchsize=2000,
@@ -96,9 +110,6 @@ learn.append(Learning_sched(lr=1e-6,
 
 
 
-
-import keras
-tensorboard_callback = keras.callbacks.TensorBoard(log_dir=train.outputDir+'logs')
 #usemetrics
 scheduled_training(learn, train, 
                    verbose=1,

@@ -210,7 +210,7 @@ def create_conv_resnet(x, name,
     x_lin = Conv3D(nodes_lin,kernel_size=kernel_dumb,strides=kernel_dumb, name=name+'_lin',
                       #kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       trainable=lin_trainable,
-                      #activation='tanh',
+                      activation='tanh',
                       #kernel_regularizer=l2(0.1*lambda_reg),
                       padding='same')(x)
     #x_lin = Dropout(0.1*dropout)(x_lin)     
@@ -246,8 +246,8 @@ def create_conv_resnet(x, name,
                       kernel_regularizer=l2(lambda_reg),
                       padding='same')(x_resnet)
     
-    x_resnet = ScalarMultiply(0.01)(x_resnet)
-    x_lin = ScalarMultiply(0.1)(x_lin)
+    x_resnet = ScalarMultiply(0.2)(x_resnet)
+    x_lin = ScalarMultiply(1.0)(x_lin)
     
     x_lin = Add()([x_lin,x_resnet])
     x_dumb = Concatenate()([x_dumb,x_lin])

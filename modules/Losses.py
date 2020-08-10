@@ -72,7 +72,7 @@ def scaled_mse(t,p):
     return huber(tf.sqrt((diff)**2/(t+1.)+K.epsilon()))
     
 def reduced_mse(truth, pred):
-    return tf.reduce_mean( (truth-pred)**2 )/25.
+    return tf.reduce_mean( (truth-pred)**2 )/25./3.
 
 global_loss_list['reduced_mse']=reduced_mse 
 
@@ -93,7 +93,7 @@ def binned_global_correction_loss_rel(y_true, y_pred):
 
 
 def binned_global_correction_loss_random(y_true, y_pred):
-    return (bin_wise_function_random(y_true,y_pred,mean_check)+K.epsilon())
+    return ((bin_wise_function_random(y_true,y_pred,mean_check)+K.epsilon()))/1.2
 
 global_loss_list['binned_global_correction_loss']=binned_global_correction_loss 
 global_loss_list['binned_global_correction_loss_random']=binned_global_correction_loss_random          

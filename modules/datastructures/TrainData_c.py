@@ -4,6 +4,7 @@ from DeepJetCore.TrainData import fileTimeOut as djfto
 import numpy as np
 import uproot
 import ROOT
+import tensorflow as tf
 
 def fileTimeOut(a,b):
     return djfto(a,b)
@@ -43,41 +44,14 @@ class TrainData_c(TrainData):
         #
         #
         if self.rebinx>1 or self.rebiny>1 or self.rebinz>1:
-            if 30%self.rebinx or 30%self.rebiny or 60%self.rebinz:
-                raise ValueError("TrainData_c.rebin: invalid rebinning choice")
-            x = np.reshape(x, [x.shape[0], 
-                           30//self.rebinx, self.rebinx,
-                           x.shape[2], 
-                           x.shape[3], 
-                           x.shape[4]
-                           ])
-            #print(x.shape)
-            x = np.sum(x, axis=2) 
-            x[:,:,:,:,1:] /= self.rebinx
             
+            pool = tf.keras.layers.AveragePooling3D(pool_size=(self.rebinx, self.rebiny, self.rebinz))
             
-            x = np.reshape(x, [x.shape[0], 
-                           x.shape[1],
-                           30//self.rebiny, self.rebiny,
-                           x.shape[3], 
-                           x.shape[4]
-                           ])
-            #print(x.shape)
-            x = np.sum(x, axis=3) 
-            x[:,:,:,:,1:] /= self.rebiny
+            x = pool.call(x)
+            x = x.numpy()
             
-            x = np.reshape(x, [x.shape[0], 
-                           x.shape[1],
-                           x.shape[2], 
-                           60//self.rebinz, self.rebinz,
-                           x.shape[4]
-                           ])
-            #print(x.shape)
-            x = np.sum(x, axis=4) 
-            x[:,:,:,:,1:] /= self.rebinz
-            #print(x.shape)
-            
-            #just use keras downsampling or something here?
+            x[:,:,:,:,0] *= self.rebinx * self.rebiny * self.rebinz #keep energy, the rest doesn't really matter
+           
             
         return x
         

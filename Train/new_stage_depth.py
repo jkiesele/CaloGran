@@ -35,6 +35,10 @@ def mymodel(Inputs, momentum=0.6):
         xystride=2
         xyrnkern=3
         
+    onlysum=False
+    if x.shape[-2] < 2:
+        onlysum=True
+        
     i = 0
     while x.shape[-2] > 6 or x.shape[-3] > 6:
         x = create_conv_resnet(x, name='rn_'+str(i),
@@ -50,10 +54,13 @@ def mymodel(Inputs, momentum=0.6):
         i+=1
     
     x = Flatten()(x)
-    x = Dense(128,activation='elu')(x)
-    x = Dense(64,activation='elu')(x)
-    x = Dense(1, name="energy")(x)
-    x = ScalarMultiply(100.)(x)
+    if onlysum:
+        x = Dense(1, name="energy")(x)
+    else:
+        x = Dense(128,activation='elu')(x)
+        x = Dense(64,activation='elu')(x)
+        x = Dense(1, name="energy")(x)
+        x = ScalarMultiply(100.)(x)
 
     model = Model(inputs=Inputs, outputs=[x])
     return model
@@ -112,7 +119,7 @@ learn.append(Learning_sched(lr=1e-6,
 
 #usemetrics
 scheduled_training(learn, train, 
-                   verbose=1,
+                   verbose=2,
                    clipnorm=None,
                    additional_callbacks=[predcb])
 

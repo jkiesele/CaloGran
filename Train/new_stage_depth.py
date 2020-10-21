@@ -18,16 +18,17 @@ parser = ArgumentParser('Run all trainings')
 
 parser.add_argument("--xy",   help="",  default=False, action="store_true")
 
-train = training_base(testrun=False, parser=parser)
+train = training_base(testrun=False, parser=parser,resumeSilently=True)
 
 
-
+nodes_lin = 16
+nodes_nonlin = 32
 
 #1x1x10
 def mymodel(Inputs, momentum=0.6):
     
     x = Inputs[0]
-    x = BatchNormalization(momentum=momentum)(x) 
+    x = normalise_but_energy(x, name='batchnorm_input',momentum=momentum)
     
     xystride = 1
     xyrnkern = 1
@@ -47,20 +48,19 @@ def mymodel(Inputs, momentum=0.6):
                        nodes_nonlin=32, 
                        kernel_nonlin_a=(1,xyrnkern,3), 
                        kernel_nonlin_b=(xyrnkern,1,3), 
-                       lambda_reg=0,
-                       dropout=-1)
-        x = BatchNormalization(momentum=momentum)(x) 
+                       lambda_reg=1e-5,
+                       dropout=0.05)
+        x = normalise_but_energy(x, name='batchnorm_conv_'+str(i),momentum=momentum)
         print('added conv block',i)
         i+=1
     
     x = Flatten()(x)
     if onlysum:
-        x = Dense(1, name="energy")(x)
+        x = Dense(1, name="energy_last")(x)
     else:
         x = Dense(128,activation='elu')(x)
-        x = Dense(64,activation='elu')(x)
-        x = Dense(1, name="energy")(x)
-        x = ScalarMultiply(100.)(x)
+        x = Dense(64,activation='elu',name='dense_last')(x)
+        x = Dense(1, name="energy_last")(x)
 
     model = Model(inputs=Inputs, outputs=[x])
     return model
@@ -97,22 +97,42 @@ from training_scheduler import scheduled_training, Learning_sched
 
 learn=[]
 
-learn.append(Learning_sched(lr=1e-3,     
-                            nepochs=50,   
-                            batchsize=100,
+learn.append(Learning_sched(lr=1e-4,     
+                            nepochs=1,   
+                            batchsize=256,#128
                             #loss=[binned_global_correction_loss_random]))
-                            loss=[reduced_mse]))
+                            loss=[huber_loss_calo]))
 
 learn.append(Learning_sched(lr=1e-4,     
-                            nepochs=50, 
-                            batchsize=1000,
+                            nepochs=19, 
+                            batchsize=512,
                             loss = [huber_loss_calo]))
 
+learn.append(Learning_sched(lr=1e-5,     
+                            nepochs=60, 
+                            batchsize=1280,
+                            loss = [huber_loss_calo]))
+
+def freeze_batchnorm(train):
+    from DeepJetCore.modeltools import fixLayersContaining
+    train.keras_model = fixLayersContaining(train.keras_model, "batchnorm")#fix all but
+
+learn.append(Learning_sched(lr=1e-5,     
+                            nepochs=20, 
+                            funccall=freeze_batchnorm,
+                            batchsize=1280,
+                            loss = [huber_loss_calo]))
+
+def freeze_all_but_last(train):
+    from DeepJetCore.modeltools import fixLayersContaining
+    train.keras_model = fixLayersContaining(train.keras_model, "last", invert=True)#fix all but
+    
 
 #basically a chi2 fit here
-learn.append(Learning_sched(lr=1e-6,     
-                            nepochs=20,  
-                            batchsize=2000,
+learn.append(Learning_sched(lr=1e-5,     
+                            nepochs=50,  
+                            funccall=freeze_all_but_last,
+                            batchsize=1280,
                             loss=[binned_global_correction_loss_random]))
 
 

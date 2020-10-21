@@ -178,30 +178,104 @@ class TrainData_c_stage7(TrainData_c):
         self.rebinz=1 #60
         
         
-class TrainData_c_stageA(TrainData_c):
+
+class TrainData_c_stage0A(TrainData_c):
     
     def __init__(self):
         TrainData_c.__init__(self)        
         
-        self.rebinx=3
-        self.rebiny=3
+        self.rebinx=10 #3
+        self.rebiny=10 #3
         self.rebinz=60 #1
         
-class TrainData_c_stageB(TrainData_c):
+        
+class TrainData_c_stage0B(TrainData_c):
     
     def __init__(self):
         TrainData_c.__init__(self)        
         
-        self.rebinx=2
-        self.rebiny=2
+        self.rebinx=6 #5
+        self.rebiny=6 #5
         self.rebinz=60 #1
         
-class TrainData_c_stageC(TrainData_c):
+        
+class TrainData_c_stage0C(TrainData_c):
     
     def __init__(self):
         TrainData_c.__init__(self)        
         
-        self.rebinx=1
-        self.rebiny=1
+        self.rebinx=3 #10
+        self.rebiny=3 #10
         self.rebinz=60 #1
+        
+        
+class TrainData_c_stage0D(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=2 #15
+        self.rebiny=2 #15
+        self.rebinz=60 #1
+        
+        
+class TrainData_c_stage0E(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=1 #30
+        self.rebiny=1 #30
+        self.rebinz=60 #1
+        
+        
+        
+class TrainData_c_stage5A(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=10 #3
+        self.rebiny=10 #3
+        self.rebinz=3 #10
+        
+        
+class TrainData_c_stage5B(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=6 #5
+        self.rebiny=6 #5
+        self.rebinz=3 #10
+        
+        
+class TrainData_c_stage5C(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=3 #10
+        self.rebiny=3 #10
+        self.rebinz=3 #10
+        
+        
+class TrainData_c_stage5D(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=2 #15
+        self.rebiny=2 #15
+        self.rebinz=3 #10
+        
+        
+class TrainData_c_stage5E(TrainData_c):
+    
+    def __init__(self):
+        TrainData_c.__init__(self)        
+        
+        self.rebinx=1 #30
+        self.rebiny=1 #30
+        self.rebinz=3 #10
         

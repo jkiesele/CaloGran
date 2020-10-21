@@ -69,13 +69,13 @@ def scheduled_training(learn, train,clipnorm,metrics=None, **trainargs):
         if trainepochs > 0:
             if not lrs.funccall is None:
                 lrs.funccall(train)
-            if not lrs.loss_weights is None:
+            if not lrs.loss_weights is None or not lrs.funccall is None:
                 train.compileModel(learningrate=0.01, #anyway overwritten
                    clipnorm=clipnorm,
                    loss=lrs.loss,
                    metrics=metrics,
                    loss_weights=lrs.loss_weights)
-                print(train.keras_model.summary())
+                #print(train.keras_model.summary())
             
             for l in train.keras_model.layers:
                 if l.trainable and l.weights and len(l.weights):

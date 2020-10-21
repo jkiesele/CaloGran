@@ -190,6 +190,7 @@ def create_conv_resnet(x, name,
                        nodes_nonlin, kernel_nonlin_a, kernel_nonlin_b, lambda_reg,
                        #leaky_relu_alpha=0.001,
                        dropout=-1,
+                       batchnorm_momentum=0.6,
                        normalize_dumb=False,
                        nodes_dumb=1,dumb_trainable=False,
                        lin_trainable=True,
@@ -218,36 +219,34 @@ def create_conv_resnet(x, name,
     #non-linear
     x_resnet = x
     if dropout>0:
-        x_resnet = Dropout(2*dropout)(x_resnet)   
+        x_resnet = Dropout(dropout)(x_resnet)   
     x_resnet = Conv3D(nodes_nonlin,kernel_size=kernel_nonlin_a,strides=(1,1,1), name=name+'_res_a',
-                      #kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
+                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),
                       padding='same')(x_resnet)
-    #x_resnet = BatchNormalization(momentum=0.6,name=name+'_res_a_bn',trainable=False)(x_resnet) 
+    x_resnet = BatchNormalization(momentum=batchnorm_momentum,name=name+'_res_a_batchnorm')(x_resnet) 
     if dropout>0:
-        x_resnet = Dropout(2*dropout)(x_resnet)    
+        x_resnet = Dropout(dropout)(x_resnet)    
                  
     x_resnet = Conv3D(nodes_nonlin,kernel_size=kernel_nonlin_b,strides=(1,1,1), name=name+'_res_b',
-                      #kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
+                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),
                       padding='same')(x_resnet)
-    #x_resnet = BatchNormalization(momentum=0.6,name=name+'_res_b_bn',trainable=False)(x_resnet) 
+    x_resnet = BatchNormalization(momentum=batchnorm_momentum,name=name+'_res_b_batchnorm',trainable=False)(x_resnet) 
     if dropout>0:
-        x_resnet = Dropout(2*dropout)(x_resnet)    
+        x_resnet = Dropout(dropout)(x_resnet)    
                       
     x_resnet = Conv3D(nodes_lin,kernel_size=kernel_dumb,strides=kernel_dumb, name=name+'_res_c',
-                      #kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
+                      kernel_initializer=tf.random_normal_initializer(0.0, 1e-3),
                       activation='tanh',
                       trainable=nonlin_trainable,
                       kernel_regularizer=l2(lambda_reg),
                       padding='same')(x_resnet)
     
-    x_resnet = ScalarMultiply(0.2)(x_resnet)
-    x_lin = ScalarMultiply(1.0)(x_lin)
     
     x_lin = Add()([x_lin,x_resnet])
     x_dumb = Concatenate()([x_dumb,x_lin])
@@ -256,10 +255,10 @@ def create_conv_resnet(x, name,
 
 from DeepJetCore.DJCLayers import ScalarMultiply, Print, SelectFeatures
 
-def normalise_but_energy(x, momentum=0.6):
+def normalise_but_energy(x,name, momentum=0.6):
     e = SelectFeatures(0,1)(x)
     r = SelectFeatures(1,x.shape[-1])(x)
-    r = BatchNormalization(momentum=momentum)(r)
+    r = BatchNormalization(momentum=momentum, name=name)(r)
     return Concatenate()([e,r])
 
 

@@ -93,7 +93,7 @@ def binned_global_correction_loss_rel(y_true, y_pred):
 
 
 def binned_global_correction_loss_random(y_true, y_pred):
-    return ((bin_wise_function_random(y_true,y_pred,mean_check)+K.epsilon()))/1.2
+    return ((bin_wise_function_random(y_true,y_pred,mean_check)+K.epsilon()))/10.
 
 global_loss_list['binned_global_correction_loss']=binned_global_correction_loss 
 global_loss_list['binned_global_correction_loss_random']=binned_global_correction_loss_random          

@@ -37,8 +37,6 @@ def mymodel(Inputs, momentum=0.6):
         xyrnkern=3
         
     onlysum=False
-    if x.shape[-2] < 2:
-        onlysum=True
         
     i = 0
     while x.shape[-2] > 6 or x.shape[-3] > 6:
